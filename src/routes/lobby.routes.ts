@@ -7,6 +7,7 @@ const generateCode = () => {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 };
 
+// sending a lobby with a get request to frontend
 router.get("/lobby/:code", async (req, res) => {
   try {
     const code = req.params.code.toUpperCase();
@@ -23,6 +24,7 @@ router.get("/lobby/:code", async (req, res) => {
   }
 });
 
+// to create a new lobby, save it to the database, then send the code back to the frontend
 router.post("/lobby", async (req, res) => {
   try {
     let code: string;
@@ -41,6 +43,36 @@ router.post("/lobby", async (req, res) => {
       return;
     }
     res.status(500).json({ error: error.message });
+  }
+});
+
+// to join a lobby, save the user to the lobby in the database
+router.post("/lobby/:code/join", async (req, res) => {
+  try {
+    const { username } = req.body;
+    const lobbyCode = req.params.code.toUpperCase();
+
+    const lobby = await Lobby.findOne({ code: lobbyCode });
+    if (!lobby) {
+      res.status(404).json({ message: "Lobby not found" });
+      return;
+    }
+
+    let userId: string;
+    let exists: Boolean;
+    do {
+      userId = generateCode();
+      exists = lobby.users.some((user) => user.userId === userId);
+    } while (exists);
+    const newUser = { userId, username, points: 0 };
+
+    lobby.users.push(newUser);
+    await lobby.save();
+
+    res.status(201).json({ user: newUser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
